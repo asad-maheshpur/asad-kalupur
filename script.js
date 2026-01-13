@@ -1,88 +1,94 @@
-const upload = document.getElementById("upload");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
+const upload = document.getElementById("upload");
+const downloadBtn = document.getElementById("download");
+
 const frame = new Image();
-frame.src = "frame.png"; // অবশ্যই local folder এ frame.png থাকবে
+frame.src = "frame.png";
 
 let img = new Image();
-let scale = 1;
-let x = 0;
-let y = 0;
-let dragging = false;
-let startX, startY;
+let imgX = 0, imgY = 0;
+let imgScale = 1;
 
-// ==================== Upload image ====================
-upload.addEventListener("change", function() {
-    const file = this.files[0];
-    if (!file) return;
+let isDragging = false;
+let startX = 0, startY = 0;
 
-    const reader = new FileReader();
-    reader.onload = function(event) {
-        img.src = event.target.result;
+upload.addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-        img.onload = function() {
-            // Scale and center image
-            scale = Math.max(canvas.width / img.width, canvas.height / img.height);
-            x = (canvas.width - img.width * scale) / 2;
-            y = (canvas.height - img.height * scale) / 2;
-            draw();
-        };
+  const reader = new FileReader();
+  reader.onload = () => {
+    img.src = reader.result;
+    img.onload = () => {
+      imgScale = Math.max(
+        canvas.width / img.width,
+        canvas.height / img.height
+      );
+      imgX = (canvas.width - img.width * imgScale) / 2;
+      imgY = (canvas.height - img.height * imgScale) / 2;
+      draw();
     };
-    reader.readAsDataURL(file);
+  };
+  reader.readAsDataURL(file);
 });
 
-// ==================== Draw function ====================
 function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if(img.src) {
-        ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-    }
-    ctx.drawImage(frame, 0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(
+    img,
+    imgX,
+    imgY,
+    img.width * imgScale,
+    img.height * imgScale
+  );
+  ctx.drawImage(frame, 0, 0, canvas.width, canvas.height);
 }
 
-// ==================== Drag functionality ====================
-canvas.addEventListener("mousedown", e => {
-    dragging = true;
-    startX = e.offsetX - x;
-    startY = e.offsetY - y;
+/* ===== Mouse Events (PC) ===== */
+canvas.addEventListener("mousedown", (e) => {
+  isDragging = true;
+  startX = e.offsetX - imgX;
+  startY = e.offsetY - imgY;
 });
 
-canvas.addEventListener("mousemove", e => {
-    if (dragging) {
-        x = e.offsetX - startX;
-        y = e.offsetY - startY;
-        draw();
-    }
+canvas.addEventListener("mousemove", (e) => {
+  if (!isDragging) return;
+  imgX = e.offsetX - startX;
+  imgY = e.offsetY - startY;
+  draw();
 });
 
-canvas.addEventListener("mouseup", () => dragging = false);
-canvas.addEventListener("mouseleave", () => dragging = false);
+canvas.addEventListener("mouseup", () => isDragging = false);
+canvas.addEventListener("mouseleave", () => isDragging = false);
 
-// ==================== Zoom ====================
-canvas.addEventListener("wheel", e => {
-    e.preventDefault();
-    const zoom = e.deltaY < 0 ? 1.05 : 0.95;
-    scale *= zoom;
-    draw();
+/* ===== Touch Events (Mobile) ===== */
+canvas.addEventListener("touchstart", (e) => {
+  e.preventDefault();
+  isDragging = true;
+  const touch = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  startX = touch.clientX - rect.left - imgX;
+  startY = touch.clientY - rect.top - imgY;
 });
 
-// ==================== Download ====================
-function downloadImage() {
-    if (!img.src) {
-        alert("দয়া করে আগে ছবি আপলোড করুন।");
-        return;
-    }
+canvas.addEventListener("touchmove", (e) => {
+  e.preventDefault();
+  if (!isDragging) return;
+  const touch = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  imgX = touch.clientX - rect.left - startX;
+  imgY = touch.clientY - rect.top - startY;
+  draw();
+});
 
-    // Step 1: Create new temporary link
-    const link = document.createElement("a");
-    link.href = canvas.toDataURL("image/png");
-    link.download = "campaign-profile.png";
+canvas.addEventListener("touchend", () => isDragging = false);
 
-    // Step 2: Click link programmatically
-    document.body.appendChild(link);
-    link.click();
-
-    // Step 3: Remove link immediately
-    document.body.removeChild(link);
-}
+/* ===== Download ===== */
+downloadBtn.addEventListener("click", () => {
+  const link = document.createElement("a");
+  link.download = "profile-frame.png";
+  link.href = canvas.toDataURL("image/png");
+  link.click();
+});
